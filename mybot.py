@@ -6,10 +6,10 @@ from flask import Flask
 from threading import Thread
 from telegram.ext import Application, MessageHandler, filters, CommandHandler
 
-# --- SERVER ĐỂ RENDER KIỂM TRA ---
+# --- SERVER GIỮ NHIỆT (DÀNH CHO RENDER) ---
 app = Flask('')
 @app.route('/')
-def home(): return "Bot is Alive!"
+def home(): return "Bot is Smart and Alive!"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -24,28 +24,38 @@ def load_faq():
     try:
         res = requests.get(SHEET_URL)
         res.encoding = 'utf-8'
-        df = pd.read_csv(StringIO(res.text), header=None)
+        # Đọc file CSV và loại bỏ các dòng trống
+        df = pd.read_csv(StringIO(res.text), header=None).dropna()
+        # Chuyển về Dictionary: { "từ khóa": "câu trả lời" }
         return dict(zip(df[0].astype(str).str.lower().str.strip(), df[1].astype(str).str.strip()))
-    except: return {}
+    except Exception as e:
+        print(f"Lỗi nạp Sheets: {e}")
+        return {}
 
 FAQ_DATA = load_faq()
 
+# --- XỬ LÝ TIN NHẮN THÔNG MINH ---
 async def handle_message(update, context):
     if not update.message or not update.message.text: return
-    txt = update.message.text.lower().strip()
-    for k, v in FAQ_DATA.items():
-        if k in txt:
-            await update.message.reply_text(v)
-            return
+    
+    # Chuyển tin nhắn người dùng về chữ thường để so sánh
+    user_text = update.message.text.lower().strip()
+    
+    # Duyệt qua danh sách từ khóa trong Sheets
+    for key, answer in FAQ_DATA.items():
+        # NÂNG CẤP: Nếu từ khóa xuất hiện bất kỳ đâu trong câu nhắn
+        if key in user_text:
+            await update.message.reply_text(answer)
+            return # Dừng lại sau khi tìm thấy câu trả lời đầu tiên khớp
 
 async def update_cmd(update, context):
     global FAQ_DATA
     FAQ_DATA = load_faq()
-    await update.message.reply_text("✅ Đã cập nhật dữ liệu!")
+    await update.message.reply_text("✅ Hệ thống đã cập nhật kiến thức mới từ Sheets!")
 
 if __name__ == '__main__':
     Thread(target=run_web).start()
-    print("--- BOT STARTED ---")
+    print("--- BOT THÔNG MINH ĐANG CHẠY ---")
     application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("update", update_cmd))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
