@@ -6,20 +6,18 @@ from flask import Flask
 from threading import Thread
 from telegram.ext import Application, MessageHandler, filters, CommandHandler
 
-# --- TẠO WEB SERVER ĐỂ ĐÁNH THỨC BOT ---
-app_web = Flask('')
-
-@app_web.route('/')
+# --- SERVER ĐỂ RENDER KIỂM TRA ---
+app = Flask('')
+@app.route('/')
 def home(): return "Bot is Alive!"
 
 def run_web():
-    # Lấy cổng từ Environment Variable chúng ta vừa cài
     port = int(os.environ.get("PORT", 10000))
-    app_web.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port)
 
-# --- PHẦN BOT TELEGRAM ---
+# --- CẤU HÌNH BOT ---
 TOKEN = "8613912349:AAGi-Ow0sxYXme6m1iymgShWKZUbc7-Kh7k"
-SHEET_ID = "1BHMhzxALROCJg0yJzBWWxCBweWad4rPSGuGnGJat_4"
+SHEET_ID = "1BHMhzxALXROCJg0yJzBWWxCBweWad4rPSGuGnGJat_4"
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
 def load_faq():
@@ -43,15 +41,12 @@ async def handle_message(update, context):
 async def update_cmd(update, context):
     global FAQ_DATA
     FAQ_DATA = load_faq()
-    await update.message.reply_text("✅ Đã nạp lại dữ liệu!")
+    await update.message.reply_text("✅ Đã cập nhật dữ liệu!")
 
 if __name__ == '__main__':
-    # Chạy "báo thức" ở luồng phụ
     Thread(target=run_web).start()
-    
-    # Chạy Bot ở luồng chính
-    print("--- BOT DẬY RỒI ĐÂY! ---")
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("update", update_cmd))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.run_polling(drop_pending_updates=True)
+    print("--- BOT STARTED ---")
+    application = Application.builder().token(TOKEN).build()
+    application.add_handler(CommandHandler("update", update_cmd))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.run_polling(drop_pending_updates=True)
